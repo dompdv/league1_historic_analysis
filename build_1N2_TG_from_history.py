@@ -165,7 +165,7 @@ def compute_1N2_TG_statistics(matches, attack_group, defense_group, min_score, m
     # initialise base_2
     ra = range(n_cat)
     #sca = range(min_score, max_score + 1)
-    sca = range(3)  # 0-1, 1-2, 3-4, 5+  (divise par 3)
+    sca = range(3)  # 0-1-2, 3-4-5, 6+  (divise par 3)
     for Aa, Ad, Ba, Bd in itertools.product(ra, ra, ra, ra):
         s_stats[(Aa, Ad, Ba, Bd)] = {'s': [[0, 0, 0] for _ in list(sca)], 'l': 0}
 
@@ -188,12 +188,10 @@ def compute_1N2_TG_statistics(matches, attack_group, defense_group, min_score, m
         s_stats[(Aa, Ad, Ba, Bd)]['l'] += 1
         s_stats[(Aa, Ad, Ba, Bd)]['s'][tg][gd + 1] += 1
 
-    base_statistics = {k: v / len(matches) for k, v in base_statistics.items()}
     for Aa, Ad, Ba, Bd in itertools.product(ra, ra, ra, ra):
         n = s_stats[(Aa, Ad, Ba, Bd)]['l']
         if n > 0:
             s_stats[(Aa, Ad, Ba, Bd)]['p'] = [[s_stats[(Aa, Ad, Ba, Bd)]['s'][i][j] / n for j in range(3)] for i in list(sca)]
-
     return s_stats
 
 

@@ -103,7 +103,7 @@ class ModelAttackDefense:
             probabilities = self.proba_table2[:, :, :, :, tg, gd] * p
             t = np.sum(probabilities)
             scores[(tg, gd)] = t
-        breakdown = [(p, 0, 0) if gd == 2 else ((0, p, 0) if gd==1 else (0, 0, p)) for (_, gd), p in scores.items()]
+        breakdown = [(p, 0, 0) if gd == 2 else ((0, p, 0) if gd == 1 else (0, 0, p)) for (_, gd), p in scores.items()]
         p_1, p_n, p_2 = 0, 0, 0
         for a,b,c in breakdown:
             p_1 += a

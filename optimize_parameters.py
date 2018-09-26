@@ -10,11 +10,12 @@ to_year = 2018
 
 full_data = {}
 
-dataset = product(range(1900,1901), range(2015, 2016), range(2,6,1), range(1,202,50), range(1,202,50))
+dataset = product(range(1900,1901), range(2015, 2016), range(2,4,1), range(1,202,50), range(1,202,50))
 
 #optimal
 dataset = product(range(1900,1901), range(2016, 2017), range(3,4,1), range(1,201,50), range(1,201,50))
 
+dataset = product(range(1900,1901), range(2015, 2016), range(3,5,1), range(1,102,50), range(1,102,50))
 for data_from_year, data_to_year, n_cat, t1, t2 in dataset:
     stats, rebuilt, filtered = load_compute_matrices(
         data_from_year,

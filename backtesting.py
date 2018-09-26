@@ -131,15 +131,6 @@ def teams_data_referential(matches):
 
     return teams, teams_invert, seasons
 
-def find_maximum_values(scores):
-    max_1 = max(p for (i, j), p in scores.items() if i > j)
-    max_n = max(p for (i, j), p in scores.items() if i == j)
-    max_2 = max(p for (i, j), p in scores.items() if i < j)
-    max_1_indexes = [(i ,j) for (i, j), p in scores.items() if i > j and p == max_1]
-    max_n_indexes = [(i ,j) for (i, j), p in scores.items() if i == j and p == max_n]
-    max_2_indexes = [(i ,j) for (i, j), p in scores.items() if i < j and p == max_2]
-    return (max_1, max_n, max_2), (max_1_indexes, max_n_indexes, max_2_indexes)
-
 def simulate_bet_over(from_year_load, to_year_load, from_year, to_year, proba_table_file, n_cat, matrices=None, printing='N'):
     # Load matches matches
     matches, matches_by_seasons, matches_count, _, teams_match_count = load_history_data(from_year, to_year)
@@ -205,36 +196,37 @@ def simulate_bet_over(from_year_load, to_year_load, from_year, to_year, proba_ta
 
             scores, p_1_n_2 = model.compute_outcome_probabilities(home_team_number, away_team_number, printing=False if printing is not 'V' else True)
             p_1, p_n, p_2 = p_1_n_2
-            (max_1, max_n, max_2),(maxi_1, maxi_n, maxi_2) = find_maximum_values(scores)
+            #(max_1, max_n, max_2),(maxi_1, maxi_n, maxi_2) = find_maximum_values(scores)
             if printing:
                 print("{} / {} -> Score observé : {}:{}".format(m['HomeTeam'], m['AwayTeam'], s1, s2))
                 print("1/N/2 = {:^5.2f},{:^5.2f},{:^5.2f}".format(p_1 * 100, p_n * 100, p_2 * 100))
-                print("Max 1/N/2 = {:^5.2f},{:^5.2f},{:^5.2f}".format(max_1 * 100, max_n * 100, max_2 * 100))
-            '''
             p_m = max(p_1_n_2)
             bet_on = 1 if p_m == p_1 else (2 if p_m == p_2 else 0)
-            '''
-            p_m = max(3*p_1 + 2*max_1, 3*p_n + 2*max_n, 3*p_2 + 2*max_2)
-            bet_on = 1 if p_m == (3*p_1 + 2*max_1) else (2 if p_m == (3*p_2 + 2*max_2) else 0)
-            # bet_on = 1
-            # bet_on = draw_ps({1: 46, 0: 27, 2: 27})
-            if bet_on == 1:
-                bet_s1, bet_s2 = maxi_1[0]
-                # bet_s1, bet_s2 = 1, 0
-            elif bet_on == 0:
-                bet_s1, bet_s2 = maxi_n[0]
-                # bet_s1, bet_s2 = 0, 0
-            else:
-                bet_s1, bet_s2 = maxi_2[0]
-                # bet_s1, bet_s2 = 0, 1
-            #bet_s1, bet_s2 = 1, 0
-            '''
-            # tirage aléatoire d'un score dans la matrice des scores
-            bet_s1, bet_s2 = draw_ps(scores)
-            bet_on = 1 if bet_s1 > bet_s2 else (2 if bet_s1 < bet_s2 else 0)
-            '''
-            bet_s1, bet_s2 = -1, 0
+            def choose_score(bet_on, p_1_n_2, scores):
+                base = [
+                    [11.7,	7.2,	3.9,	1.2,	0.5,	0.1],
+                    [13.3,	13.8,	5.5,	2.0,	0.5,	0.0],
+                    [9.9,	8.6,	4.6,	1.1,	0.3,	0.1],
+                    [3.5,	4.5,	1.9,	0.4,	0.1,	0.0],
+                    [1.7,	1.3,	0.6,	0.2,	0.2,	0.0],
+                    [0.5,	0.3,	0.1,	0.1,	0.0,	0.0]
+                ]
+                index = [1, 2, 0][bet_on]
+                possible_scores = []
+                for (tg, gd), ptg in scores.items():
+                    if gd != index:
+                        continue
+                    for s1, r in enumerate(base):
+                        for s2, p in enumerate(r):
+                            if (bet_on == 1 and s1 > s2) or (bet_on == 0 and s1 == s2) or (bet_on == 2 and s1 < s2):
+                                if min((s1 + s2) // 3, 2) == tg:
+                                    possible_scores.append((s1, s2, p * ptg))
+                possible_scores = sorted(possible_scores, key=lambda x: x[2], reverse=True)
+                s1, s2, _ = possible_scores[0]
+                return s1, s2
+            bet_s1, bet_s2 = choose_score(bet_on, p_1_n_2, scores)
 
+            #print("Bet on : {}, Score: {}/{}".format(bet_on, bet_s1, bet_s2))
             if printing:
                 print("Bet on : {}, Score: {}/{}".format(bet_on, bet_s1, bet_s2))
             # Tirage aléatoire
@@ -266,7 +258,7 @@ def simulate_bet_over(from_year_load, to_year_load, from_year, to_year, proba_ta
             strategy = 'N'
             if m['B365_1'] != '': # on a de la data
                 cote_bet_on = m['B365_' + (str(bet_on) if bet_on != 0 else "N")]
-                if cote_bet_on > 0:
+                if cote_bet_on > 1.7:
                     strategy = 'S'
                     played = True
                     enjeu = cote_bet_on
@@ -315,33 +307,19 @@ def simulate_bet_over(from_year_load, to_year_load, from_year, to_year, proba_ta
                         else:
                             if printing:
                                 print('Cote trop faible -> pas de pari')
-            row = {
-                'HomeTeam': m['HomeTeam'],
-                'AwayTeam': m['AwayTeam'],
-                's1': s1,
-                's2': s2,
-                'Played': 1 if played else 0,
-                'p1': p_1,
-                'pN': p_n,
-                'p2': p_2,
-                'c1': m['B365_1'],
-                'cN': m['B365_N'],
-                'c2': m['B365_2'],
-                'bet_on': bet_on if played else -1,
-                'p_bet': p_1 if bet_on == 1 else (p_2 if bet_on == 2 else p_n),
-                'c_bet': 0,
-                'pc_bet': 0,
-                'stake': enjeu,
-                'gain': gain,
-                'win': -1 if not played else (1 if gain > 0 else 0),
-                'cp1': 0,
-                'cpN': 0,
-                'cp2': 0,
-                'pc1': 0,
-                'pcN': 0,
-                'pc2': 0,
-                'strategy': strategy
-            }
+            def format_row():
+                return {
+                    'HomeTeam': m['HomeTeam'], 'AwayTeam': m['AwayTeam'],
+                    's1': s1, 's2': s2,
+                    'Played': 1 if played else 0,
+                    'p1': p_1, 'pN': p_n, 'p2': p_2, 'c1': m['B365_1'], 'cN': m['B365_N'], 'c2': m['B365_2'],
+                    'bet_on': bet_on if played else -1,
+                    'p_bet': p_1 if bet_on == 1 else (p_2 if bet_on == 2 else p_n), 'c_bet': 0, 'pc_bet': 0, 'stake': enjeu, 'gain': gain,
+                    'win': -1 if not played else (1 if gain > 0 else 0),
+                    'cp1': 0, 'cpN': 0, 'cp2': 0, 'pc1': 0, 'pcN': 0, 'pc2': 0,
+                    'strategy': strategy
+                }
+            row = format_row()
             if played:
                 row["cp1"], row["cpN"], row["cp2"] = 1 / row["c1"], 1 / row["cN"], 1 / row["c2"]
                 row['c_bet'] = m['B365_1'] if bet_on == 1 else (m['B365_2'] if bet_on == 2 else m['B365_N'])
@@ -392,7 +370,7 @@ def simulate_bet_over(from_year_load, to_year_load, from_year, to_year, proba_ta
 
 # ===================================================================================
 if __name__ == "__main__":
-    data_from_year, data_to_year = 1900, 2015
+    data_from_year, data_to_year = 1900, 2019
     t1, t2 = 50, 50
     n_cat = 3
     from_year = 2015
